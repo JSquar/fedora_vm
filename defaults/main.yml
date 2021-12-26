@@ -1,0 +1,12 @@
+---
+# defaults file for vm_kickstarter
+base_image_url: https://download.fedoraproject.org/pub/fedora/linux/releases/{{ fedora_version }}/Server/x86_64/iso/Fedora-Server-netinst-x86_64-{{ fedora_version }}-1.2.iso
+cheksum_url: https://getfedora.org/static/checksums/{{ fedora_version }}/iso/Fedora-Server-{{ fedora_version }}-1.2-x86_64-CHECKSUM
+fedora_version: 35
+libvirt_pool_dir: "$HOME/.local/share/libvirt/images/"
+vm_cpus: 2
+vm_name: ansible_fedora_{{ fedora_version }}
+vm_net: default
+vm_ram_gb: 2
+vm_disk_gb: 20
+vm_ssh_key: $HOME/.ssh/id_rsa_{{  vm_name }}
