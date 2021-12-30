@@ -1,16 +1,18 @@
 ---
-# depends partially on https://www.redhat.com/sysadmin/build-VM-fast-ansible
+# inspired by https://www.redhat.com/sysadmin/build-VM-fast-ansible
 
 # /* -------------------------------------------------------------------------- */
 # /*                             Setup dependencies                             */
 # /* -------------------------------------------------------------------------- */
-- name: Install libvirt requirements
-  package:
-    name:
-      - guestfs-tools
-      - python3-libvirt
-    state: present
-  become: yes
+# - name: Install libvirt requirements
+#   package:
+#     name:
+#       - guestfs-tools
+#       - python3-libvirt
+#     state: present
+#   become: yes
+    # tags:
+    #   - initial
 
 # - name: Create ssh key file
 #   - todo: Create ssh key file
@@ -24,14 +26,63 @@
   register: existing_vms
   changed_when: no
 
-- name: Create VM if it does not exist
+- name: Create kickstart iso
   block:
+  - name: Create kickstart file from template
+    template:
+      src: anaconda-ks.cfg.j2
+      dest: "/tmp/anaconda-ks.cfg"
+      mode: 0600
+    tags:
+      - static
+
+  # - name: Create kickstart iso
+  #   community.general.iso_create: 
+  #     dest_iso: "/tmp/anaconda-ks.iso"
+  #     src_files:
+  #       - "/tmp/anaconda-ks.cfg"
+  #     vol_ident: "OEMDRV"
+
+  - name: Create ISO file
+    ansible.builtin.command: 
+      argv:
+        - "genisoimage"
+        - "-V" 
+        - "OEMDRV"
+        - "-o"
+        - "/tmp/anaconda-ks.iso"
+        - "/tmp/anaconda-ks.cfg"
+    tags:
+      - static
+    
+  
+- name: Create VM if it does not already exist
+  block:
+  - name: Download image checksum file
+    get_url:
+      url: "{{ checksum_url }}"
+      dest: "/tmp/{{ base_image_name }}.checksum"
+    tags:
+      - static
+
   - name: Download base image
     get_url:
       url: "{{ base_image_url }}"
       dest: "/tmp/{{ base_image_name }}"
-      checksum: "sha512:{{ base_image_sha512 }}"
-  
+      # checksum: "sha512:{{ base_image_sha512 }}"
+    tags:
+      - static
+
+  # - name: Check checksum of downloaded iso file
+  #   ansible.builtin.command:
+  #     chdir: /tmp
+  #     argv:
+  #       - "sha256sum"
+  #       - "--check"
+  #       - "{{ base_image_name }}.checksum"
+  #   tags:
+  #     - static
+
   - name: Copy base image to libvirt directory
     copy:
       dest: "{{ libvirt_pool_dir }}/{{ vm_name }}.qcow2"
@@ -41,21 +92,22 @@
       mode: 0660
     register: copy_results
 
-  - name: Configure the VM image
-    command: |
-      virt-customize -a {{ libvirt_pool_dir }}/{{ vm_name }}.qcow2 \
-      --hostname {{ vm_name }} \
-      --root-password password:{{ vm_root_pass }} \
-      --ssh-inject 'root:file:{{ ssh_key }}' \
-      --uninstall cloud-init --selinux-relabel
-    # when: copy_results is changed
+  
+  # - name: Configure the VM image
+  #   command: |
+  #     virt-customize -a {{ libvirt_pool_dir }}/{{ vm_name }}.qcow2 \
+  #     --hostname {{ vm_name }} \
+  #     --root-password password:{{ vm_root_password }} \
+  #     --ssh-inject 'root:file:{{ ssh_key }}' \
+  #     --uninstall cloud-init --selinux-relabel
+  #   # when: copy_results is changed
 
   - name: Define vm
     community.libvirt.virt:
       command: define
-      xml: "{{ lookup('template', 'vm-template.xml.j2') }}"
+      xml: "{{ lookup('template', 'fedora_xml_dump.xml.j2') }}"
 
-  when: "vm_name not in existing_vms.list_vms"
+  # when: vm_name not in existing_vms.list_vms
 
 # /* -------------------------------------------------------------------------- */
 # /*                              Start and cleanup                             */

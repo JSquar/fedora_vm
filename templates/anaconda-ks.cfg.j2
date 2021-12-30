@@ -9,8 +9,11 @@ keyboard --vckeymap=de --xlayouts='de'
 # System language
 lang en_GB.UTF-8
 
+network --hostname={{ hostname }}
+
 %packages
 @^server-product-environment
+ncview
 
 %end
 
@@ -23,7 +26,7 @@ ignoredisk --only-use=vda
 clearpart --none --initlabel
 # Disk partitioning information
 part /boot --fstype="xfs" --ondisk=vda --size=1024
-part btrfs.64 --fstype="btrfs" --ondisk=vda --size={{ (vm_storage_gb * 1024) }} --encrypted --luks-version=luks2
+part btrfs.64 --fstype="btrfs" --ondisk=vda --size={{ (vm_disk_gb | int * 1024) }} --encrypted --luks-version=luks2
 btrfs none --label=fedora_fedora btrfs.64
 btrfs /home --subvol --name=home LABEL=fedora_fedora
 btrfs / --subvol --name=root LABEL=fedora_fedora
@@ -33,4 +36,4 @@ timezone Europe/Berlin --utc
 
 #Root password
 rootpw --lock
-user --groups=wheel --name=ansible --password={{ vm_ansible_pwd }} --shell=/usr/bin/zsh --plaintext --gecos="ansible"
+user --groups=wheel --name=ansible --password={{ vm_ansible_password }} --shell=/usr/bin/zsh --plaintext --gecos="ansible"
